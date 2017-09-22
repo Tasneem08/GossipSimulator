@@ -8,12 +8,3 @@ defmodule MainController do
    numNodes=nNodes|>String.to_integer()
   end
 end
-
-defmodule Master do
-
-end
-
-defmodule Worker do
-
-
-end
