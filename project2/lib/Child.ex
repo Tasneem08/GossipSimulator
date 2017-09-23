@@ -1,12 +1,14 @@
 defmodule Child do
   def start_link(limit) do
-    pid = spawn_link(__MODULE__, :init, [limit])
+   IO.puts("reached here")
+    pid = IO.inspect spawn_link(__MODULE__, :init, [limit])
+    IO.puts("reached here after spawning")
     {:ok, pid}
   end
 
   def init(limit) do
     IO.puts "Start child with limit #{limit} pid #{inspect self()}"
-    loop(limit)
+    loop(1000)
   end
 
   def loop(0), do: :ok
