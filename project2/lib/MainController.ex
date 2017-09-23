@@ -6,22 +6,32 @@ defmodule MainController do
    IO.inspect(args)
    [nNodes,topology,algorithm] = args
    numNodes=nNodes|>String.to_integer()
-   Gossip.Supervisor.start_link(nNodes,topology,algorithm)
+   Gossip.Supervisor.start_link(numNodes,topology,algorithm)
   end
 end
 
 defmodule Gossip.Supervisor do
     use Supervisor
 
-    def start_link(nNodes,topology,algorithm) do
-    Supervisor.start_link(__MODULE__, [nNodes,topology,algorithm])
+    def start_link(numNodes,topology,algorithm) do
+    Supervisor.start_link(__MODULE__, [numNodes])
     end
 
-    def init([nNodes,topology,algorithm]) do
-        children = [
-            worker(Worker, [nNodes,topology,algorithm])
-        ]
+    # def init([numNodes,topology,algorithm]) do
+    #     # children = [
+    #     #     worker(Worker, [numNodes,topology,algorithm])
+    #     # ]
 
-        IO.inspect Supervisor.start_child(children,strategy: :one_for_one)
-    end
+    #     #IO.inspect Supervisor.init(children,strategy: :one_for_one)
+    #     IO.inspect Supervisor.init([{Worker, [numNodes,topology,algorithm]}], strategy: :one_for_one)
+    # end
+
+    def init(limits) do
+    children = Enum.map(limits, fn(limit_num) ->
+      worker(Child, [limit_num], [id: limit_num, restart: :permanent])
+    end)
+
+    IO.inspect supervise(children, strategy: :one_for_one)
+    IO.inpect supervisor()
+  end
 end

@@ -1,22 +1,35 @@
 defmodule Worker do
 use Agent
 
-  def start_link(nodeId,topology,algorithm) do
-    IO.inspect Agent.start_link(fn -> createWorker(nodeId,topology,algorithm) end)
+  def start_link([numNodes,topology,algorithm]) do
+   for x <- 1..numNodes do
+    IO.inspect spawn(fn -> createWorker(x,topology,algorithm) end)
+
+  end
+  {:ok}
   end
 
 
 def createWorker(nodeId,topology,algorithm) do
-s = nodeId
-w = 1
-[s,w,0]
+    s = nodeId
+    neighbor = {}
+    w = 1
+    [s,w,0]
+    networkTopology(String.to_atom(topology))
+    loop(nodeId)
+# connections to be established.
+end
+
+def loop(nodeId) do
+    IO.puts("#{nodeId}")
+    loop(nodeId)
 end
 
 def init([nNodes,topology,algorithm]) do
-IO.puts("Reached here..")
+    IO.puts("Reached here..")
 end
 
-def topology(topo) do
+def networkTopology(topo) do
 case topo do
     :line -> IO.puts "Found line"
     :full ->IO.puts "Found full"
