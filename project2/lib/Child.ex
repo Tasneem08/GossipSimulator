@@ -20,6 +20,15 @@ use Agent
   def infect(pid) do
   IO.inspect "Printing the state of this agent!!!!"
   IO.inspect Agent.get(pid, fn state -> state end)
+  
+  end
+  def send_rumour(pid,algorithm) do
+  if algorithm == "pushsum" do
+  #Agent.update(worker_name,(&Map.put((&Map.get(&1,:s))/2,(&Map.get(&1,:w))/2,(&Map.get(&1,:count))+1)))
+  IO.inspect Agent.update(pid,{(&Map.get(&1,:s))/2,(&Map.get(&1,:w))/2,(&Map.get(&1,:count))+1})
+  else
+  Agent.update(pid,fn -> %{:count => :count+1} end)
+  end
   end
 
   def loop(0), do: :ok
