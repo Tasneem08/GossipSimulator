@@ -15,14 +15,16 @@ defmodule Gossip.Supervisor do
     use Supervisor
 
     def start_link(numNodes,topology,algorithm) do
-    Supervisor.start_link(__MODULE__, [numNodes,topology,algorithm])
-    end
 
-    def init([numNodes,topology,algorithm]) do
     children = Enum.map(Enum.to_list(1..numNodes), fn(nodeId) ->
       worker(Child, [nodeId, topology, numNodes, algorithm], [id: nodeId, restart: :permanent])
     end)
 
-    supervise(children,strategy: :one_for_one)
-  end
+    Supervisor.start_link(children,strategy: :one_for_one, name: :super)
+    IO.puts "Done creating agents. Infecting a random node..."
+
+    childList = Supervisor.which_children(:super)
+    {_, pid, _, _} = IO.inspect Enum.at(childList, Enum.random(0..(numNodes-1)))
+    Child.infect(pid)
+    end
 end

@@ -16,6 +16,11 @@ use Agent
       IO.puts "Found Topo as #{topology}. UNHANDLED!!"
    end
   end
+  
+  def infect(pid) do
+  IO.inspect "Printing the state of this agent!!!!"
+  IO.inspect Agent.get(pid, fn state -> state end)
+  end
 
   def loop(0), do: :ok
   def loop(n) when n > 0 do
