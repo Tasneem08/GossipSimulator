@@ -16,26 +16,50 @@ use Agent
       IO.puts "Found Topo as #{topology}. UNHANDLED!!"
    end
   end
-  
+
+# For Gossip
   def infect(pid) do
-  IO.inspect "Printing the state of this agent!!!!"
-  IO.inspect Agent.get(pid, fn state -> state end)
-  
+    new_count = IO.inspect Agent.get(pid, &Map.get(&1,:count)+1)
+    Agent.update(pid,&Map.put(&1,:count, new_count))
+    if new_count == 10 do
+       Agent.stop(pid, :normal)
   end
-  def send_rumour(pid,algorithm) do
-  if algorithm == "pushsum" do
-  new_s=IO.inspect Agent.get(pid,&Map.get(&1,:s)/2)
-  new_w=IO.inspect Agent.get(pid,&Map.get(&1,:w)/2)
-  new_count=IO.inspect Agent.get(pid,&Map.get(&1,:count)+1)
-  
-  Agent.update(pid, &Map.put(&1,:s,new_s))
-  Agent.update(pid, &Map.put(&1,:w, new_w))
-  Agent.update(pid, &Map.put(&1,:count,new_count))
-  else
-  Agent.update(pid,fn -> %{:count => :count+1} end)
-  end
+    Child.spreadInfection()
   end
 
+ # For Push Sum algo
+  def infect(pid, {s,w}}) do
+    old_s = IO.inspect Agent.get(pid, &Map.get(&1,:s))
+    old_w = IO.inspect Agent.get(pid, &Map.get(&1,:w))
+    count = IO.inspect Agent.get(pid, &Map.get(&1,:count)+1)
+    new_s = s + old_s
+    new_w = w + old_w
+
+    if abs(old_s/old_w - new_s/new_w) < :math.pow(10, -10) do
+       count = count + 1
+    else 
+       count = 0
+    end
+
+    Agent.update(pid, &Map.put(&1,:s, new_s))
+    Agent.update(pid, &Map.put(&1,:w, new_w))
+    Agent.update(pid, &Map.put(&1,:count, count))
+   
+    if(count ==3) do
+      Agent.update(pid, &Map.put(&1,:s, new_s))
+      Agent.update(pid, &Map.put(&1,:w, new_w))
+      Agent.update(pid, &Map.put(&1,:count, count))
+      Agent.stop(pid, :normal)
+    else
+      Agent.update(pid, &Map.put(&1,:s, new_s/2))
+      Agent.update(pid, &Map.put(&1,:w, new_w/2))
+      Agent.update(pid, &Map.put(&1,:count, count))
+      Child.spreadInfection(new_s/2, new_w/2)
+    end
+  end
+
+
+  def spreadInfection()
   def loop(0), do: :ok
   def loop(n) when n > 0 do
     IO.puts "Process #{inspect self()} counter #{n}"
