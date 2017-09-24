@@ -24,8 +24,13 @@ use Agent
   end
   def send_rumour(pid,algorithm) do
   if algorithm == "pushsum" do
-  #Agent.update(worker_name,(&Map.put((&Map.get(&1,:s))/2,(&Map.get(&1,:w))/2,(&Map.get(&1,:count))+1)))
-  IO.inspect Agent.update(pid,{(&Map.get(&1,:s))/2,(&Map.get(&1,:w))/2,(&Map.get(&1,:count))+1})
+  new_s=IO.inspect Agent.get(pid,&Map.get(&1,:s)/2)
+  new_w=IO.inspect Agent.get(pid,&Map.get(&1,:w)/2)
+  new_count=IO.inspect Agent.get(pid,&Map.get(&1,:count)+1)
+  
+  Agent.update(pid, &Map.put(&1,:s,new_s))
+  Agent.update(pid, &Map.put(&1,:w, new_w))
+  Agent.update(pid, &Map.put(&1,:count,new_count))
   else
   Agent.update(pid,fn -> %{:count => :count+1} end)
   end
