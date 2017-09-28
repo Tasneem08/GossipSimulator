@@ -68,6 +68,39 @@ use Agent
        
       #Check TOPO here. find neighbors according to the topology, push the neighbors into a list.
       # Do Enum.random to get a random neighbor to infect. Call infect with s,w
+      if topology=="line" do  
+
+          if(nodeId==0) do
+            neighbor=[nodeId+1]
+            selectedNeighbor=Enum.random(neighbor)
+          
+          else if(nodeId==numNodes) do
+            neighbor=[nodeId-1]
+            selectedNeighbor=Enum.random(neighbor)
+          
+          else
+            neighbor=[nodeId+1,nodeId-1]
+            selectedNeighbor=Enum.random(neighbor)
+          end
+      #send to random neighbor
+
+      else if(topology=="full") do
+        nodes=[0..numNodes]
+        nodeList=Enum.to_list(nodes)
+        neighbor=List.delete(nodeList,nodeId)
+        selectedNeighbor=Enum.random(neighbor)
+      end
+    end
+     # else if(topology=="twoD")  
+    nodeIP = findIP() 
+    neighborName = String.to_atom("workernode"<>Integer.to_string(selectedNeighbor)<>"@"<>nodeIP)
+
+    #algorithm
+    if algorithm=="gossip" do
+    infect(neighborName)    
+    else
+    infect(neighborName,{s,w})
+    end
 
   end 
 
