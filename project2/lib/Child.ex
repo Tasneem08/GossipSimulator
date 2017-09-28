@@ -57,12 +57,27 @@ use Agent
       Agent.update(pid, &Map.put(&1,:s, new_s/2))
       Agent.update(pid, &Map.put(&1,:w, new_w/2))
       Agent.update(pid, &Map.put(&1,:count, count))
-      Child.spreadInfection(new_s/2, new_w/2)
+      Child.spreadInfection(pid, new_s/2, new_w/2)
     end
   end
 
 
-  def spreadInfection() 
+  def spreadInfection(sender_pid, s, w) do
+      sender = Agent.get(sender_pid, fn (state) -> hd(state) end)
+      nodeId = getNodeId(sender)
+       
+      #Check TOPO here. find neighbors according to the topology, push the neighbors into a list.
+      # Do Enum.random to get a random neighbor to infect. Call infect with s,w
+
+  end 
+
+  def getNodeId(sender) do
+      str = Atom.to_string(sender)
+      [first, _] = String.split(str, "@")
+      "workernode"<>num = first
+      String.to_integer(num)
+  end
+
   def loop(0), do: :ok
   def loop(n) when n > 0 do
     IO.puts "Process #{inspect self()} counter #{n}"
