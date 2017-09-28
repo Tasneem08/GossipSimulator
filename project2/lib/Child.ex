@@ -8,9 +8,9 @@ use Agent
 
    if topology == "line" or topology == "full" do
       if algorithm == "pushsum" do
-         pid = IO.inspect Agent.start_link(fn -> %{:s => nodeId, :w => 1, :count => 0} end, name: worker_name)
+         pid = IO.inspect Agent.start_link(fn -> %{:s => nodeId, :w => 1, :count => 0, :numNodes => numNodes, :topology => topology} end, name: worker_name)
       else 
-         pid = IO.inspect Agent.start_link(fn -> %{:s => nodeId, :w => 0, :count => 0} end, name: worker_name)
+         pid = IO.inspect Agent.start_link(fn -> %{:s => nodeId, :w => 0, :count => 0, :numNodes => numNodes, :topology => topology} end, name: worker_name)
       end
    else 
       IO.puts "Found Topo as #{topology}. UNHANDLED!!"
@@ -20,21 +20,21 @@ use Agent
 # For Gossip
   def infect(pid) do
     IO.puts "Found Gossip"
-    new_count = IO.inspect Agent.get(pid, &Map.get(&1,:count)+1)
+    new_count = Agent.get(pid, &Map.get(&1,:count)+1)
     Agent.update(pid,&Map.put(&1,:count, new_count))
     if new_count == 10 do
        Agent.stop(pid, :normal)
     else
-       Child.spreadInfection()
+       Child.spreadInfection(pid, 0, 0)
     end
   end
 
  # For Push Sum algo
   def infect(pid, {s,w}) do
     IO.puts "Found Push Sum"
-    old_s = IO.inspect Agent.get(pid, &Map.get(&1,:s))
-    old_w = IO.inspect Agent.get(pid, &Map.get(&1,:w))
-    count = IO.inspect Agent.get(pid, &Map.get(&1,:count))
+    old_s = Agent.get(pid, &Map.get(&1,:s))
+    old_w = Agent.get(pid, &Map.get(&1,:w))
+    count = Agent.get(pid, &Map.get(&1,:count))
     new_s = s + old_s
     new_w = w + old_w
 
@@ -61,47 +61,51 @@ use Agent
     end
   end
 
+  # Push sum
+  def spreadInfection(sender_pid, s , w) do
+     neighborName = getNextNeighbor(sender_pid)
+     infect(neighborName,{s,w})
+  end
 
-  def spreadInfection(sender_pid, s, w) do
-      sender = Agent.get(sender_pid, fn (state) -> hd(state) end)
+  # Gossip
+  def spreadInfection(sender_pid) do
+      neighborName = getNextNeighbor(sender_pid)
+      infect(neighborName)
+  end
+
+  def getNextNeighbor(sender_pid) do
+      sender = Agent.get(sender_pid, fn -> Agent.name() end)
       nodeId = getNodeId(sender)
-       
+      topology = Agent.get(sender_pid, &Map.get(&1,:topology))
+      numNodes = Agent.get(sender_pid, &Map.get(&1,:numNodes))
       #Check TOPO here. find neighbors according to the topology, push the neighbors into a list.
       # Do Enum.random to get a random neighbor to infect. Call infect with s,w
-      if topology=="line" do  
+      case topology do  
 
-          if(nodeId==0) do
-            neighbor=[nodeId+1]
-            selectedNeighbor=Enum.random(neighbor)
-          
-          else if(nodeId==numNodes) do
-            neighbor=[nodeId-1]
-            selectedNeighbor=Enum.random(neighbor)
-          
-          else
-            neighbor=[nodeId+1,nodeId-1]
-            selectedNeighbor=Enum.random(neighbor)
+          "line"->
+          case nodeId do
+          0 -> 
+                neighbor=[nodeId+1]
+                selectedNeighbor=Enum.random(neighbor)
+          numNodes ->
+                neighbor=[nodeId-1]
+                selectedNeighbor=Enum.random(neighbor)
+          _ ->
+                neighbor=[nodeId+1,nodeId-1]
+                selectedNeighbor=Enum.random(neighbor)
           end
       #send to random neighbor
 
-      else if(topology=="full") do
+       "full" ->
         nodes=[0..numNodes]
         nodeList=Enum.to_list(nodes)
         neighbor=List.delete(nodeList,nodeId)
         selectedNeighbor=Enum.random(neighbor)
       end
-    end
+    
      # else if(topology=="twoD")  
     nodeIP = findIP() 
-    neighborName = String.to_atom("workernode"<>Integer.to_string(selectedNeighbor)<>"@"<>nodeIP)
-
-    #algorithm
-    if algorithm=="gossip" do
-    infect(neighborName)    
-    else
-    infect(neighborName,{s,w})
-    end
-
+    String.to_atom("workernode"<>Integer.to_string(selectedNeighbor)<>"@"<>nodeIP)
   end 
 
   def getNodeId(sender) do
