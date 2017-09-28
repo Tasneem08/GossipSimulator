@@ -19,19 +19,22 @@ use Agent
 
 # For Gossip
   def infect(pid) do
+    IO.puts "Found Gossip"
     new_count = IO.inspect Agent.get(pid, &Map.get(&1,:count)+1)
     Agent.update(pid,&Map.put(&1,:count, new_count))
     if new_count == 10 do
        Agent.stop(pid, :normal)
-  end
-    Child.spreadInfection()
+    else
+       Child.spreadInfection()
+    end
   end
 
  # For Push Sum algo
-  def infect(pid, {s,w}}) do
+  def infect(pid, {s,w}) do
+    IO.puts "Found Push Sum"
     old_s = IO.inspect Agent.get(pid, &Map.get(&1,:s))
     old_w = IO.inspect Agent.get(pid, &Map.get(&1,:w))
-    count = IO.inspect Agent.get(pid, &Map.get(&1,:count)+1)
+    count = IO.inspect Agent.get(pid, &Map.get(&1,:count))
     new_s = s + old_s
     new_w = w + old_w
 
@@ -41,9 +44,9 @@ use Agent
        count = 0
     end
 
-    Agent.update(pid, &Map.put(&1,:s, new_s))
-    Agent.update(pid, &Map.put(&1,:w, new_w))
-    Agent.update(pid, &Map.put(&1,:count, count))
+    # Agent.update(pid, &Map.put(&1,:s, new_s))
+    # Agent.update(pid, &Map.put(&1,:w, new_w))
+    # Agent.update(pid, &Map.put(&1,:count, count))
    
     if(count ==3) do
       Agent.update(pid, &Map.put(&1,:s, new_s))
@@ -59,7 +62,7 @@ use Agent
   end
 
 
-  def spreadInfection()
+  def spreadInfection() 
   def loop(0), do: :ok
   def loop(n) when n > 0 do
     IO.puts "Process #{inspect self()} counter #{n}"

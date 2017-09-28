@@ -26,9 +26,10 @@ defmodule Gossip.Supervisor do
     childList = Supervisor.which_children(:super)
     {_, pid, _, _} = IO.inspect Enum.at(childList, Enum.random(0..(numNodes-1)))
 
-    if algorithm == "pushsum"
+    if algorithm == "pushsum" do
       Child.infect(pid, {0,0})
     else
       Child.infect(pid)
     end
+  end
 end
