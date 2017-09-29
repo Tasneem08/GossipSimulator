@@ -14,19 +14,21 @@ use Agent
    
    case topology do  
           "line"->
-          case :nodeId do
-          0 -> 
-                neighbor=[nodeId+1] 
-          :numNodes ->
-                neighbor=[nodeId-1]
-          _ ->
-                neighbor=[nodeId+1,nodeId-1]
+          if nodeId == 1 do
+            neighbor=[nodeId+1]
           end
+          if nodeId == numNodes do
+            neighbor=[nodeId-1]
+          end
+          if nodeId != 1 and nodeId != numNodes do
+            neighbor=[nodeId+1,nodeId-1]
+          end 
+
       #send to random neighbor
 
-       "full" ->
-        nodeList=Enum.to_list(0..numNodes)
-        neighbor=List.delete(nodeList,nodeId)
+          "full" ->
+          nodeList=Enum.to_list(1..numNodes)
+          neighbor=List.delete(nodeList,nodeId)
   end
    pid = IO.inspect Agent.start_link(fn -> %{:nodeId => nodeId, :s => nodeId, :w => w, :count => 0 , :neighbors => neighbor} end, name: worker_name)
 
@@ -36,15 +38,19 @@ use Agent
   def infect(pid) do
   IO.puts "Found Gossip"
     if pid != nil and Process.alive?(pid) do
-    IO.inspect "Infecting "
+    IO.inspect "            Infecting "
     IO.inspect pid
     new_count = Agent.get(pid, &Map.get(&1,:count)+1)
     Agent.update(pid,&Map.put(&1,:count, new_count))
     if new_count == 3 do
-       informDeath(pid)
-       Agent.stop(pid, :normal)
+       IO.puts "         Dying..."
+       {return_value} = informDeath(pid)
+       if return_value == :ok do
+         IO.puts "Killed!!!!"
+         Agent.stop(pid, :normal)
+       end
     else
-       IO.inspect "Sender is "
+       IO.inspect "          Sender is "
        IO.inspect pid
        Child.spreadInfection(pid)
     end
@@ -77,13 +83,17 @@ use Agent
       Agent.update(pid, &Map.put(&1,:s, new_s))
       Agent.update(pid, &Map.put(&1,:w, new_w))
       Agent.update(pid, &Map.put(&1,:count, count))
-      informDeath(pid)
-      Agent.stop(pid, :normal)
+      IO.puts "           Dying..."
+      {return_value} = informDeath(pid)
+      if return_value == :ok do
+         IO.puts "Killed!!!!"
+         Agent.stop(pid, :normal)
+      end
     else
       Agent.update(pid, &Map.put(&1,:s, new_s/2))
       Agent.update(pid, &Map.put(&1,:w, new_w/2))
       Agent.update(pid, &Map.put(&1,:count, count))
-      IO.inspect "Sender is "
+      IO.inspect "           Sender is "
       IO.inspect pid
       Child.spreadInfection(pid, new_s/2, new_w/2)
     end
@@ -93,13 +103,14 @@ use Agent
   def informDeath(pid) do
      neighbors = Agent.get(pid, &Map.get(&1,:neighbors))
      nodeId = Agent.get(pid, &Map.get(&1,:nodeId))
-     nodeIP = findIP() 
+     nodeIP = findIP()
      for x <- neighbors do
         neighbor = String.to_atom("workernode"<>Integer.to_string(x)<>"@"<>nodeIP)
-        list = Agent.get(neighbor, &Map.get(&1,:neighbors))
+        list = Agent.get(Process.whereis(neighbor), &Map.get(&1,:neighbors))
         list = List.delete(list,nodeId)
-        Agent.update(neighbor, &Map.put(&1,:neighbors, list))
+        Agent.update(Process.whereis(neighbor), &Map.put(&1,:neighbors, list))
      end
+     {:ok}
   end
   # Push sum
   def spreadInfection(sender_pid, s , w) do
@@ -118,9 +129,9 @@ use Agent
 
       #Check TOPO here. find neighbors according to the topology, push the neighbors into a list.
       # Do Enum.random to get a random neighbor to infect. Call infect with s,w
-     index = IO.inspect Enum.count(neighbors)-1
-     rand_index = IO.inspect Enum.random(0..index)
-     selectedNeighbor = Enum.at(neighbors, rand_index)
+     index = Enum.count(neighbors)
+     rand_index = Enum.random(1..index)
+     selectedNeighbor = Enum.at(neighbors, rand_index - 1)
 
      # else if(topology=="twoD")  
       nodeIP = findIP() 
