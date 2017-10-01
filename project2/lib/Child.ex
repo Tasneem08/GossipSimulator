@@ -29,6 +29,66 @@ use Agent
           "full" ->
           nodeList=Enum.to_list(1..numNodes)
           neighbor=List.delete(nodeList,nodeId)
+
+          _ ->
+          # 1	 2	3	 4
+          # 5	 6	7	 8
+          # 9	 10 11 12
+          # 13 14	15 16
+
+          sqrt = :math.sqrt(numNodes)|> Float.ceil |> round
+          row = (nodeId-1)/sqrt |> Float.floor |> round
+          column = :math.fmod((nodeId-1), sqrt) |> round
+          done = false
+          if column == 0 and done == false do
+              neighbor = [nodeId+1]
+              if nodeId - sqrt > 0 do
+              neighbor = List.insert_at(neighbor, 0, nodeId - sqrt)
+              end
+              if nodeId + sqrt < numNodes do
+              neighbor = List.insert_at(neighbor, 0, nodeId + sqrt)
+              end
+              done = true
+          end
+
+          if column == sqrt-1 and done == false do
+              neighbor = [nodeId-1]
+              if nodeId - sqrt > 0 do
+              neighbor = List.insert_at(neighbor, 0, nodeId - sqrt)
+              end
+              if nodeId + sqrt < numNodes do
+              neighbor = List.insert_at(neighbor, 0, nodeId + sqrt)
+              end
+              done = true
+          end
+
+          if row == 0 and done == false do
+              neighbor = [nodeId-1, nodeId+sqrt, nodeId+1]
+              done = true
+          end
+
+          if row == sqrt-1 and done == false do
+              neighbor = [nodeId-1, nodeId-sqrt, nodeId+1]
+              done = true
+          end
+
+          if done == false do
+             neighbor = [nodeId-1, nodeId-sqrt, nodeId+1, nodeId+sqrt]
+             done = true
+          end
+
+          IO.inspect nodeId 
+          IO.inspect neighbor
+          
+ # UNIMPLEMENTED
+          if topology == "imp2D" do
+             nodeList=Enum.to_list(1..numNodes)
+             for x<- neighbor do
+                 nodeList = List.delete(nodeList,x)
+             end
+            List.insert_at(neighbor, 0, )
+          end
+
   end
    pid = IO.inspect Agent.start_link(fn -> %{:nodeId => nodeId, :s => nodeId, :w => w, :count => 0 , :neighbors => neighbor} end, name: worker_name)
 

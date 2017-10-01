@@ -16,6 +16,11 @@ defmodule Gossip.Supervisor do
 
     def start_link(numNodes,topology,algorithm) do
 
+    if topology == "2D" do
+       #Readjust the number of nodes.
+       sqrt = :math.sqrt(numNodes)|> Float.ceil|> round
+       numNodes = sqrt*sqrt
+    end
     children = Enum.map(Enum.to_list(1..numNodes), fn(nodeId) ->
       worker(Child, [nodeId, topology, numNodes, algorithm], [id: nodeId, restart: :permanent])
     end)
