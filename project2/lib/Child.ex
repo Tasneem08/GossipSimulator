@@ -77,22 +77,34 @@ use Agent
              done = true
           end
 
-          IO.inspect nodeId 
-          IO.inspect neighbor
-          
+
+
  # UNIMPLEMENTED
           if topology == "imp2D" do
              nodeList=Enum.to_list(1..numNodes)
-             for x<- neighbor do
-                 nodeList = List.delete(nodeList,x)
-             end
-            List.insert_at(neighbor, 0, )
+              nodeList = IO.inspect List.delete(nodeList,nodeId)
+              nodeList = removeCurrentNeighbors(nodeList, neighbor)
+            probableNeighborCount = Enum.count(nodeList)
+            rand_neighborIndex = Enum.random(1..probableNeighborCount)
+            selectedRandNeighbor = Enum.at(nodeList, rand_neighborIndex - 1)
+            neighbor = List.insert_at(neighbor, 0, selectedRandNeighbor)
           end
 
   end
+          IO.inspect nodeId 
+          IO.inspect neighbor
    pid = IO.inspect Agent.start_link(fn -> %{:nodeId => nodeId, :s => nodeId, :w => w, :count => 0 , :neighbors => neighbor} end, name: worker_name)
 
   end
+
+def removeCurrentNeighbors(nodeList, [head | tail]) do
+    nodeList = IO.inspect List.delete(nodeList, head)
+    removeCurrentNeighbors(nodeList, tail)
+end
+
+def removeCurrentNeighbors(nodeList , []) do
+    nodeList
+end
 
 # For Gossip
   def infect(pid) do

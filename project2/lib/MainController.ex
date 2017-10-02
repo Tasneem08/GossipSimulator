@@ -16,7 +16,7 @@ defmodule Gossip.Supervisor do
 
     def start_link(numNodes,topology,algorithm) do
 
-    if topology == "2D" do
+    if topology == "2D" or topology == "imp2D" do
        #Readjust the number of nodes.
        sqrt = :math.sqrt(numNodes)|> Float.ceil|> round
        numNodes = sqrt*sqrt
