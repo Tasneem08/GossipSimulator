@@ -22,7 +22,7 @@ defmodule Gossip.Supervisor do
        numNodes = sqrt*sqrt
     end
     children = Enum.map(Enum.to_list(1..numNodes), fn(nodeId) ->
-      worker(Child, [nodeId, topology, numNodes, algorithm], [id: nodeId, restart: :permanent])
+      worker(GossipNode, [nodeId, topology, numNodes, algorithm], [id: nodeId, restart: :permanent])
     end)
 
     Supervisor.start_link(children,strategy: :one_for_one, name: :super)

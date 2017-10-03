@@ -1,110 +1,20 @@
 defmodule Child do
 use Agent
 
-  def start_link(nodeId, topology, numNodes, algorithm) do
-
-   nodeIP = findIP() 
-   worker_name = String.to_atom("workernode"<>Integer.to_string(nodeId)<>"@"<>nodeIP)
-   
-   if algorithm == "pushsum" do
-         w = 1
-   else 
-         w = 0  
-   end
-   
-   case topology do  
-          "line"->
-          if nodeId == 1 do
-            neighbor=[nodeId+1]
-          end
-          if nodeId == numNodes do
-            neighbor=[nodeId-1]
-          end
-          if nodeId != 1 and nodeId != numNodes do
-            neighbor=[nodeId+1,nodeId-1]
-          end 
-
-      #send to random neighbor
-
-          "full" ->
-          nodeList=Enum.to_list(1..numNodes)
-          neighbor=List.delete(nodeList,nodeId)
-
-          _ ->
-          # 1	 2	3	 4
-          # 5	 6	7	 8
-          # 9	 10 11 12
-          # 13 14	15 16
-
-          sqrt = :math.sqrt(numNodes)|> Float.ceil |> round
-          row = (nodeId-1)/sqrt |> Float.floor |> round
-          column = :math.fmod((nodeId-1), sqrt) |> round
-          done = false
-          if column == 0 and done == false do
-              neighbor = [nodeId+1]
-              if nodeId - sqrt > 0 do
-              neighbor = List.insert_at(neighbor, 0, nodeId - sqrt)
-              end
-              if nodeId + sqrt < numNodes do
-              neighbor = List.insert_at(neighbor, 0, nodeId + sqrt)
-              end
-              done = true
-          end
-
-          if column == sqrt-1 and done == false do
-              neighbor = [nodeId-1]
-              if nodeId - sqrt > 0 do
-              neighbor = List.insert_at(neighbor, 0, nodeId - sqrt)
-              end
-              if nodeId + sqrt < numNodes do
-              neighbor = List.insert_at(neighbor, 0, nodeId + sqrt)
-              end
-              done = true
-          end
-
-          if row == 0 and done == false do
-              neighbor = [nodeId-1, nodeId+sqrt, nodeId+1]
-              done = true
-          end
-
-          if row == sqrt-1 and done == false do
-              neighbor = [nodeId-1, nodeId-sqrt, nodeId+1]
-              done = true
-          end
-
-          if done == false do
-             neighbor = [nodeId-1, nodeId-sqrt, nodeId+1, nodeId+sqrt]
-             done = true
-          end
+ 
 
 
-
- # UNIMPLEMENTED
-          if topology == "imp2D" do
-             nodeList=Enum.to_list(1..numNodes)
-              nodeList = IO.inspect List.delete(nodeList,nodeId)
-              nodeList = removeCurrentNeighbors(nodeList, neighbor)
-            probableNeighborCount = Enum.count(nodeList)
-            rand_neighborIndex = Enum.random(1..probableNeighborCount)
-            selectedRandNeighbor = Enum.at(nodeList, rand_neighborIndex - 1)
-            neighbor = List.insert_at(neighbor, 0, selectedRandNeighbor)
-          end
-
-  end
-          IO.inspect nodeId 
-          IO.inspect neighbor
-   pid = IO.inspect Agent.start_link(fn -> %{:nodeId => nodeId, :s => nodeId, :w => w, :count => 0 , :neighbors => neighbor} end, name: worker_name)
-
-  end
-
-def removeCurrentNeighbors(nodeList, [head | tail]) do
-    nodeList = IO.inspect List.delete(nodeList, head)
-    removeCurrentNeighbors(nodeList, tail)
-end
-
-def removeCurrentNeighbors(nodeList , []) do
-    nodeList
-end
+    def loop(nodeId, s, w, count, neighbor) do
+        receive do
+            {new_s, new_w} ->
+                IO.inspect "Received new s and w..."
+            _ ->
+                IO.inspect "Received something..."
+        end
+    IO.inspect nodeId
+    IO.inspect "Waiting..."
+    loop(nodeId, s, w, count, neighbor)
+    end
 
 # For Gossip
   def infect(pid) do
@@ -147,10 +57,6 @@ end
         count = 0
       end
 
-    # Agent.update(pid, &Map.put(&1,:s, new_s))
-    # Agent.update(pid, &Map.put(&1,:w, new_w))
-    # Agent.update(pid, &Map.put(&1,:count, count))
-   
     if(count ==3) do
       Agent.update(pid, &Map.put(&1,:s, new_s))
       Agent.update(pid, &Map.put(&1,:w, new_w))
@@ -169,21 +75,10 @@ end
       IO.inspect pid
       Child.spreadInfection(pid, new_s/2, new_w/2)
     end
-    end
+  end
   end
 
-  def informDeath(pid) do
-     neighbors = Agent.get(pid, &Map.get(&1,:neighbors))
-     nodeId = Agent.get(pid, &Map.get(&1,:nodeId))
-     nodeIP = findIP()
-     for x <- neighbors do
-        neighbor = String.to_atom("workernode"<>Integer.to_string(x)<>"@"<>nodeIP)
-        list = Agent.get(Process.whereis(neighbor), &Map.get(&1,:neighbors))
-        list = List.delete(list,nodeId)
-        Agent.update(Process.whereis(neighbor), &Map.put(&1,:neighbors, list))
-     end
-     {:ok}
-  end
+
   # Push sum
   def spreadInfection(sender_pid, s , w) do
      neighborName = getNextNeighbor(sender_pid)
@@ -199,41 +94,14 @@ end
   def getNextNeighbor(sender_pid) do
       neighbors = Agent.get(sender_pid, &Map.get(&1,:neighbors))
 
-      #Check TOPO here. find neighbors according to the topology, push the neighbors into a list.
-      # Do Enum.random to get a random neighbor to infect. Call infect with s,w
      index = Enum.count(neighbors)
      rand_index = Enum.random(1..index)
      selectedNeighbor = Enum.at(neighbors, rand_index - 1)
 
-     # else if(topology=="twoD")  
       nodeIP = findIP() 
       String.to_atom("workernode"<>Integer.to_string(selectedNeighbor)<>"@"<>nodeIP)
   end 
 
-  def getNodeId(sender) do
-      str = Atom.to_string(sender)
-      [first, _] = String.split(str, "@")
-      "workernode"<>num = first
-      String.to_integer(num)
-  end
-
   # Returns the IP address of the machine the code is being run on.
-  def findIP do
-    {ops_sys, extra } = :os.type
-    ip = 
-    case ops_sys do
-      :unix -> 
-            if extra == :linux do
-              {:ok, [addr: ip]} = :inet.ifget('ens3', [:addr])
-              to_string(:inet.ntoa(ip))
-            else
-              {:ok, [addr: ip]} = :inet.ifget('en0', [:addr])
-              to_string(:inet.ntoa(ip))
-            end
-      :win32 -> {:ok, [ip, _]} = :inet.getiflist
-               to_string(ip)
-    end
-  (ip)
-  end
 
 end
