@@ -13,36 +13,74 @@ defmodule GossipServer do
   end
 
   # Gossip infection
-  def handle_call({:infect}, _from, state) do
+  def handle_cast({:infect}, state) do
   [nodeId, s, w, current_count, neighbor] = IO.inspect state
-  new_count = current_count+1
+  new_count = current_count
+   if current_count<10 do
+      new_count = current_count+1
 
-  if new_count == 3 do
-    IO.puts "         Dying..."
+  case new_count do
+  10 ->
     GossipNode.informDeath(nodeId, neighbor)
-  else
-    IO.inspect "Will spread infection"
-    spawn(fn -> GossipNode.spreadInfection(neighbor) end)
+  1 ->
+    GenServer.cast(self(), {:spreadInfection})
+  _ ->
+    IO.puts ""
   end
-    {:reply, state, [nodeId, s, w, new_count, neighbor]}
+  end
+    {:noreply, [nodeId, s, w, new_count, neighbor]}
   end
 
-  # PushSum infection
-  # def handle_cast({:infect, s, w}, state) do
-  # {nodeId, s, w, current_count, neighbor}
-  #     case Map.get(map, inputStr) do
-  #     nil ->
-  #       Bitcoinminer.printBitcoins(inputStr, hashValue)
-  #       {:noreply, {k, Map.put(map, inputStr, hashValue)}}
-  #     _ ->
-  #       {:noreply, state}
-  #    end
-  # end
+    # pushsum infection
+  def handle_cast({:infectPushSum, s, w}, state) do
+  [nodeId, old_s, old_w, current_count, neighbor] = state
+
+      new_s = old_s
+      new_w = old_w
+    if current_count<3 and s != 0 do
+        new_s = s + old_s
+        new_w = w + old_w
+
+        if abs(old_s/old_w - new_s/new_w) < :math.pow(10, -10) do
+          current_count = current_count + 1
+        else 
+          current_count = 0
+        end
+
+  case current_count do
+  3 ->
+    GossipNode.informDeath(nodeId, neighbor)
+  _ ->
+    GenServer.cast(self(), {:spreadInfectionPushSum})
+  end
+
+  else 
+    GenServer.cast(self(), {:spreadInfectionPushSum})
+  end
+   IO.inspect new_s/new_w
+    {:noreply,[nodeId, new_s, new_w, current_count, neighbor]}
+  end
+
 
   def handle_cast({:removeNeighbor, nodeId}, state) do
       [nodeId, s, w, current_count, neighbor] = state
       neighbor = List.delete(neighbor, nodeId)
       {:noreply, [nodeId, s, w, current_count, neighbor]}
+  end
+
+  def handle_cast({:spreadInfection}, state) do
+      [nodeId, s, w, current_count, neighbor] = state
+      neighborName = GossipNode.getNextNeighbor(neighbor)
+      GossipNode.sendGossip(neighborName)
+      {:noreply, state}
+  end
+
+    def handle_cast({:spreadInfectionPushSum}, state) do
+      [nodeId, s, w, current_count, neighbor] = state
+
+      neighborName = GossipNode.getNextNeighbor(neighbor)
+      GossipNode.sendGossip(neighborName, s/2, w/2)
+      {:noreply, [nodeId, s/2, w/2, current_count, neighbor]}
   end
 
   def handle_cast({:kill_self}, state) do
@@ -58,10 +96,21 @@ end
 # The main module
 defmodule GossipNode do
 
+def sendGossip(neighborName) do
+    GenServer.cast(neighborName, {:infect})
+    Process.sleep(1)
+    GenServer.cast(self(), {:spreadInfection})
+end
+
+def sendGossip(neighborName, s, w) do
+    GenServer.cast(neighborName, {:infectPushSum, s, w})
+    Process.sleep(1)
+    GenServer.cast(self(), {:spreadInfectionPushSum})
+end
+
   def informDeath(nodeId, neighbor) do
      nodeIP = findIP()
      for x <- neighbor do
-        selectedNeighborNode = String.to_atom("workernode"<>Integer.to_string(x)<>"@"<>nodeIP)
         selectedNeighborServer = String.to_atom("workerserver"<>Integer.to_string(x))
         GenServer.cast(selectedNeighborServer, {:removeNeighbor, nodeId})
      end
@@ -157,7 +206,7 @@ defmodule GossipNode do
 
   end
    #Node.start(worker_name)
-   pid = IO.inspect GossipServer.start_link(nodeId, nodeId, w, 0 , neighbor)
+   pid = GossipServer.start_link(nodeId, nodeId, w, 0 , neighbor)
   end
 
 def removeCurrentNeighbors(nodeList, [head | tail]) do
@@ -172,14 +221,21 @@ end
   # Gossip
   def spreadInfection(neighbor) do
       neighborName = getNextNeighbor(neighbor)
-      IO.inspect GenServer.call(neighborName, {:infect})
+      GenServer.call(neighborName, {:infect})
+      spreadInfection(neighbor)
   end
+
+  # Pushsum
+  # def spreadInfection(neighbor, s , w) do
+  #    neighborName = getNextNeighbor(sender_pid)
+  #    infect(Process.whereis(neighborName),{s,w})
+  # end
 
   def getNextNeighbor(neighbors) do
      index = Enum.count(neighbors)
      rand_index = Enum.random(1..index)
      selectedNeighbor = Enum.at(neighbors, rand_index - 1)
-     IO.inspect String.to_atom("workerserver"<>Integer.to_string(selectedNeighbor))
+     String.to_atom("workerserver"<>Integer.to_string(selectedNeighbor))
   end 
 
   # Returns the IP address of the machine the code is being run on.

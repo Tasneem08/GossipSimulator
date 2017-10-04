@@ -22,7 +22,12 @@ use GenServer
    selectedNeighborNode = String.to_atom("workernode"<>Integer.to_string(firstNode)<>"@"<>GossipNode.findIP())
    selectedNeighborServer = String.to_atom("workerserver"<>Integer.to_string(firstNode))
    
-   GenServer.call(selectedNeighborServer, {:infect}) ##
+    if algorithm == "pushsum" do
+      GenServer.cast(selectedNeighborServer, {:infectPushSum, 0, 0})
+    else
+      GenServer.cast(selectedNeighborServer, {:infect})
+    end
+   :timer.sleep(:infinity)
 
 
    #Gossip.Supervisor.start_link(numNodes,topology,algorithm)
