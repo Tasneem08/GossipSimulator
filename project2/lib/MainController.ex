@@ -33,11 +33,11 @@ defmodule Gossip.Supervisor do
     selectedNeighborNode = String.to_atom("workernode"<>Integer.to_string(firstNode)<>"@"<>GossipNode.findIP())
     selectedNeighborServer = String.to_atom("workerserver"<>Integer.to_string(firstNode))
 
-    # if algorithm == "pushsum" do
-    #   GenServer.cast({selectedNeighborServer, selectedNeighborNode}, {:infect, nodeId, 1})
-    # else
-    GenServer.call(selectedNeighborServer, {:infect})
+    if algorithm == "pushsum" do
+      GenServer.cast(selectedNeighborServer, {:infectPushSum, 0, 0})
+    else
+      GenServer.cast(selectedNeighborServer, {:infect})
+    end
     :timer.sleep(:infinity)
-    # end
   end
 end
