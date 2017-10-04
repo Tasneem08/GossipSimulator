@@ -29,12 +29,15 @@ defmodule Gossip.Supervisor do
     IO.puts "Done creating agents. Infecting a random node..."
 
     childList = Supervisor.which_children(:super)
-    {_, pid, _, _} = IO.inspect Enum.at(childList, Enum.random(0..(numNodes-1)))
+    {firstNode, pid, _, _} = IO.inspect Enum.at(childList, Enum.random(0..(numNodes-1)))
+    selectedNeighborNode = String.to_atom("workernode"<>Integer.to_string(firstNode)<>"@"<>GossipNode.findIP())
+    selectedNeighborServer = String.to_atom("workerserver"<>Integer.to_string(firstNode))
 
-    if algorithm == "pushsum" do
-      Child.infect(pid, {0,0})
-    else
-      Child.infect(pid)
-    end
+    # if algorithm == "pushsum" do
+    #   GenServer.cast({selectedNeighborServer, selectedNeighborNode}, {:infect, nodeId, 1})
+    # else
+    GenServer.call(selectedNeighborServer, {:infect})
+    :timer.sleep(:infinity)
+    # end
   end
 end
