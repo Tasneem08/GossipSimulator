@@ -12,22 +12,31 @@ defmodule GossipServer do
       {:ok, {nodeId, s, w, count, firstInfection, neighbor}}
   end
 
+
   # Gossip infection
   def handle_cast({:infect}, state) do
-  [nodeId, s, w, current_count, isFirstInfection, neighbor] = state 
+
+   [nodeId, s, w, current_count, isFirstInfection, neighbor] = state 
+   new_count = current_count
+   if(current_count<10) do
    new_count = current_count+1
+
   if new_count == 10 do
-    GossipNode.informDeath(nodeId, neighbor) 
+    GossipNode.informDeathGossip(nodeId, neighbor) 
+  end
     end
   if isFirstInfection == false do
     GenServer.cast(self(), {:spreadInfection}) 
     isFirstInfection == true
   end
 
-    {:noreply, [nodeId, s, w, new_count, isFirstInfection, neighbor]}
+  IO.inspect [nodeId, s, w, new_count, isFirstInfection, neighbor]
+  {:noreply, [nodeId, s, w, new_count, isFirstInfection, neighbor]}
+
   end
 
-    # pushsum infection
+  
+  # Pushsum infection
   def handle_cast({:infectPushSum, s, w}, state) do
   [nodeId, old_s, old_w, current_count, isFirstInfection, neighbor] = state
 
@@ -65,11 +74,11 @@ if isFirstInfection == false do
   def handle_cast({:spreadInfection}, state) do
       [nodeId, s, w, current_count, isFirstInfection, neighbor] = state
       neighborName = GossipNode.getNextNeighbor(neighbor)
-      GossipNode.sendGossip(neighborName)
+      GossipNode.sendGossip(nodeId,neighborName)
       {:noreply, state}
   end
 
-    def handle_cast({:spreadInfectionPushSum}, state) do
+  def handle_cast({:spreadInfectionPushSum}, state) do
       [nodeId, s, w, current_count, isFirstInfection, neighbor] = state
       neighbor
       neighborName = GossipNode.getNextNeighbor(neighbor)
@@ -82,7 +91,9 @@ if isFirstInfection == false do
   end
 
   def terminate(_, state) do
+    IO.puts "I am dying"
     GenServer.cast(:main_server, {:iDied})
+    {:ok}
   end
 
 end
@@ -90,9 +101,10 @@ end
 # The main module
 defmodule GossipNode do
 
-def sendGossip(neighborName) do
+def sendGossip(nodeId,neighborName) do
     GenServer.cast(neighborName, {:infect})
-    GenServer.cast(self(), {:spreadInfection})
+     Process.sleep(1)
+    GenServer.cast(String.to_atom("workerserver"<>Integer.to_string(nodeId)), {:spreadInfection})
 end
 
 def sendGossip(nodeId, neighborName, s, w) do
@@ -101,8 +113,18 @@ def sendGossip(nodeId, neighborName, s, w) do
     GenServer.cast(String.to_atom("workerserver"<>Integer.to_string(nodeId)), {:spreadInfectionPushSum})
 end
 
+  def informDeathGossip(nodeId, neighbor) do
+    # GenServer.cast(String.to_atom("workerserver"<>Integer.to_string(nodeId)), {:kill_self})
+    nodeIP = findIP()
+     for x <- neighbor do
+        selectedNeighborServer = String.to_atom("workerserver"<>Integer.to_string(x))
+        GenServer.cast(selectedNeighborServer, {:removeNeighbor, nodeId})
+     end
+     GenServer.cast(String.to_atom("workerserver"<>Integer.to_string(nodeId)), {:kill_self})
+  end
+
   def informDeath(nodeId, neighbor) do
-     GenServer.cast(self(), {:kill_self})
+     GenServer.cast(String.to_atom("workerserver"<>Integer.to_string(nodeId)), {:kill_self})
   end
 
   # Entry point to the code. 

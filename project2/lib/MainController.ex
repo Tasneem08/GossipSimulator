@@ -47,7 +47,7 @@ use GenServer
   def handle_cast({:iDied}, state) do
     [map, numNodes, count, starttime] = state
     count = count + 1
-    if count >= Float.floor(0.75*numNodes) do
+    if count >= Float.floor(0.90*numNodes) do
         diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
         IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
         Process.exit(self(), :shutdown)
