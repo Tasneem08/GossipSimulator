@@ -17,9 +17,9 @@ use GenServer
    map = loadGenservers(nodeList, topology, numNodes, algorithm, %{})
 
   # Start gen server
-   start_link(map, numNodes)
+   start_link(map, numNodes, algorithm)
 
-   GenServer.cast(:main_server, {:initiateProtocol, algorithm})
+   GenServer.cast(:main_server, {:initiateProtocol, map, numNodes})
 
     :timer.sleep(:infinity)
 
@@ -27,7 +27,7 @@ use GenServer
   end
 
   def loadGenservers([nodeId|nodeList], topology, numNodes, algorithm, map) do
-   pid = GossipNode.start_link(nodeId, topology, numNodes, algorithm)
+   {_, pid} = GossipNode.start_link(nodeId, topology, numNodes, algorithm)
    map = Map.put(map,pid,nodeId)
    loadGenservers(nodeList, topology, numNodes, algorithm, map)
   end
@@ -36,41 +36,61 @@ use GenServer
     map
   end
   
-  def start_link(map, numNodes) do
-  GenServer.start_link(MainController, [map, numNodes, 0, DateTime.utc_now], name: :main_server)
+  def start_link(map, numNodes, algorithm) do
+  GenServer.start_link(MainController, [map, numNodes, algorithm, 0, DateTime.utc_now], name: :main_server)
   end
 
-    def init(map, numNodes, count, starttime) do
-      {:ok, {map, numNodes, count, starttime}}
+    def init(map, numNodes, algorithm, count, starttime) do
+      {:ok, {map, numNodes, algorithm, count, starttime}}
   end
 
-  def handle_cast({:iDied}, state) do
-    [map, numNodes, count, starttime] = state
-    count = count + 1
-    if count >= Float.floor(0.90*numNodes) do
-        diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
-        IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
-        Process.exit(self(), :shutdown)
-    else 
-    {:noreply, [map, numNodes, count, starttime]}
-    end
+  def handle_cast({:iDied, pid}, state) do
+    [map, numNodes, algorithm, count, starttime] = state
+    if Map.has_key?(map, pid) do
+    # IO.inspect pid
+      map = Map.delete(map, pid)
+      
+      count = count + 1
+      numNodes = numNodes-1
+      spawn_link(fn -> GenServer.cast(:main_server, {:initiateProtocol, map, numNodes}) end)
+    # if count >= Float.floor(0.50*numNodes) do
+    #     diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
+    #     IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
+    #     Process.exit(self(), :shutdown)
+    # end
+    end 
+    {:noreply, [map, numNodes, algorithm,count, starttime]}
   end
 
-    def handle_cast({:initiateProtocol, algorithm}, state) do
-      [map, numNodes, count, starttime] = state
-      {{_, pid}, firstNode} = Enum.at(map, Enum.random(0..(numNodes-1)))
+  def handle_cast({:initiateProtocol, map, aliveNodes}, state) do
+      [_, _, algorithm, count, starttime] = state
+      if aliveNodes == 0 do
+       diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
+       IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
+       Process.exit(self(), :shutdown)
+      end
+      #IO.inspect "Infecting with #{aliveNodes} alive Nodes..."
+      { pid, firstNode} = Enum.at(map, Enum.random(0..(aliveNodes-1)))
       #  selectedNeighborNode = String.to_atom("workernode"<>Integer.to_string(firstNode)<>"@"<>GossipNode.findIP())
       selectedNeighborServer = String.to_atom("workerserver"<>Integer.to_string(firstNode))
-      a = DateTime.utc_now
+      # a = DateTime.utc_now
       if algorithm == "pushsum" do
       GenServer.cast(selectedNeighborServer, {:infectPushSum, 0, 0})
       else
       GenServer.cast(selectedNeighborServer, {:infect})
       end
-      {:noreply, [map, numNodes, count, a]}
+      {:noreply, [map, aliveNodes, algorithm, count, starttime]}
+  end
+
+    def handle_cast({:initiateProtocol, map, 0}, state) do
+       [_, _, _, _, starttime] = state
+       diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
+       IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
+       Process.exit(self(), :shutdown)
   end
 
   def handle_call({:killMain}, _from, state) do
+    
     IO.puts "Most nodes have died. Shutting down the protocol..."
     {:stop, :normal, state}
   end
