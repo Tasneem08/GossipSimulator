@@ -75,7 +75,7 @@ use GenServer
       selectedNeighborServer =  String.to_atom("workerserver"<>Integer.to_string(firstNode))
       # a = DateTime.utc_now
       if Process.whereis(selectedNeighborServer) != nil do
-      if algorithm == "pushsum" do
+      if algorithm == "push-sum" do
       GenServer.cast(selectedNeighborServer, {:infectPushSum, 0, 0})
       else
       GenServer.cast(selectedNeighborServer, {:infect})

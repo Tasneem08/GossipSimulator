@@ -32,11 +32,10 @@ end
   def handle_cast({:infectPushSum, s, w}, state) do
   [nodeId, old_s, old_w, current_count, isFirstInfection, neighbor] = state
 
-      new_s = old_s + 0.0
-      new_w = old_w + 0.0
-    if current_count <3 and s != 0 do
-        new_s = s + old_s
+         new_s = s + old_s
         new_w = w + old_w
+    if current_count <3 and s != 0 do
+
         if abs(old_s/old_w - new_s/new_w) < :math.pow(10, -10) do
           current_count = current_count + 1
         else 
@@ -129,7 +128,7 @@ end
    nodeIP = findIP() 
    worker_name = String.to_atom("workernode"<>Integer.to_string(nodeId)<>"@"<>nodeIP)
    
-   if algorithm == "pushsum" do
+   if algorithm == "push-sum" do
          w = 1
    else 
          w = 0  
@@ -168,7 +167,7 @@ end
               if nodeId - sqrt > 0 do
               neighbor = List.insert_at(neighbor, 0, nodeId - sqrt)
               end
-              if nodeId + sqrt < numNodes do
+              if nodeId + sqrt <= numNodes do
               neighbor = List.insert_at(neighbor, 0, nodeId + sqrt)
               end
               done = true
@@ -179,7 +178,7 @@ end
               if nodeId - sqrt > 0 do
               neighbor = List.insert_at(neighbor, 0, nodeId - sqrt)
               end
-              if nodeId + sqrt < numNodes do
+              if nodeId + sqrt <= numNodes do
               neighbor = List.insert_at(neighbor, 0, nodeId + sqrt)
               end
               done = true
