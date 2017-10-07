@@ -226,21 +226,30 @@ end
 
 
   def getNextNeighbor(neighbors) do
-     index = Enum.count(neighbors)
+     {aliveOnes, _ } = neighbors |> Enum.partition(&GossipNode.isNodeAlive/1)
+    #  IO.inspect aliveOnes
+     index = Enum.count(aliveOnes)
      if index == 0 do
-      # IO.inspect "Neighbors count 0."
       {:die}
      else
      rand_index = Enum.random(1..index)
-     selectedNeighbor = Enum.at(neighbors, rand_index - 1)
-      if Process.whereis(String.to_atom("workerserver"<>Integer.to_string(selectedNeighbor))) == nil do
-         fetchNextValid(neighbors)
-      else
+     selectedNeighbor = Enum.at(aliveOnes, rand_index - 1)
+      # if Process.whereis(String.to_atom("workerserver"<>Integer.to_string(selectedNeighbor))) == nil do
+      #    fetchNextValid(neighbors)
+      # else
          String.to_atom("workerserver"<>Integer.to_string(selectedNeighbor))
-      end
+      # end
       end
   end 
 
+def isNodeAlive(worker_name) do
+if Process.whereis(String.to_atom("workerserver"<>Integer.to_string(worker_name))) == nil do
+  # IO.inspect worker_name
+   false
+else
+   true
+end
+end
 
 def fetchNextValid([head | tail]) do
     if Process.whereis(String.to_atom("workerserver"<>Integer.to_string(head))) == nil do
