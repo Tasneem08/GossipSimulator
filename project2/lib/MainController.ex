@@ -19,7 +19,7 @@ use GenServer
   # Start gen server
    start_link(map, numNodes, algorithm)
 
-   GenServer.cast(:main_server, {:initiateProtocol, map, numNodes})
+   GenServer.cast(:main_server, {:initiateProtocol, map})
 
     :timer.sleep(:infinity)
 
@@ -46,13 +46,12 @@ use GenServer
 
   def handle_cast({:iDied, pid}, state) do
     [map, numNodes, algorithm, count, starttime] = state
-    if Map.has_key?(map, pid) do
+    if  Map.has_key?(map, pid) do
     # IO.inspect pid
       map = Map.delete(map, pid)
       
       count = count + 1
-      numNodes = numNodes-1
-      spawn_link(fn -> GenServer.cast(:main_server, {:initiateProtocol, map, numNodes}) end)
+      spawn(fn->GenServer.cast(:main_server, {:initiateProtocol, map})end)
     # if count >= Float.floor(0.50*numNodes) do
     #     diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
     #     IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
@@ -62,27 +61,35 @@ use GenServer
     {:noreply, [map, numNodes, algorithm,count, starttime]}
   end
 
-  def handle_cast({:initiateProtocol, map, aliveNodes}, state) do
-      [_, _, algorithm, count, starttime] = state
-      if aliveNodes == 0 do
+  def handle_cast({:initiateProtocol, map}, state) do
+      # Process.sleep(50)
+      [_, numNodes, algorithm, count, starttime] = state
+      if map_size(map) <= 0.5*numNodes do
        diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
        IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
        Process.exit(self(), :shutdown)
       end
-      #IO.inspect "Infecting with #{aliveNodes} alive Nodes..."
-      { pid, firstNode} = Enum.at(map, Enum.random(0..(aliveNodes-1)))
+      # IO.inspect "Infecting with #{map_size(map)} alive Nodes..."
+      { pid, firstNode} = Enum.at(map, Enum.random(0..(map_size(map)-1)))
       #  selectedNeighborNode = String.to_atom("workernode"<>Integer.to_string(firstNode)<>"@"<>GossipNode.findIP())
-      selectedNeighborServer = String.to_atom("workerserver"<>Integer.to_string(firstNode))
+      selectedNeighborServer =  String.to_atom("workerserver"<>Integer.to_string(firstNode))
       # a = DateTime.utc_now
+      if Process.whereis(selectedNeighborServer) != nil do
       if algorithm == "pushsum" do
       GenServer.cast(selectedNeighborServer, {:infectPushSum, 0, 0})
       else
       GenServer.cast(selectedNeighborServer, {:infect})
       end
-      {:noreply, [map, aliveNodes, algorithm, count, starttime]}
+      end
+      {:noreply, state}
   end
 
-    def handle_cast({:initiateProtocol, map, 0}, state) do
+    def handle_cast({:findNextAgain}, state) do
+       GenServer.cast(:main_server, {:initiateProtocol})
+       {:noreply, state}
+  end
+
+      def handle_cast({:initiateProtocol, map, 0}, state) do
        [_, _, _, _, starttime] = state
        diff =  DateTime.diff(DateTime.utc_now, starttime, :millisecond)
        IO.puts "Most nodes have died. Shutting down the protocol.. Convergence took #{diff} milliseconds."
